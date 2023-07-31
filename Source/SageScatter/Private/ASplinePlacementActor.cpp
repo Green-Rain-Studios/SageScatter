@@ -99,6 +99,65 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 	}
 }
 
+void AASplinePlacementActor::PlaceSplineMeshesLooped()
+{
+	// First, clear all SplineMeshes
+	for (int i = 0; i < SMCs.Num(); i++)
+	{
+		SMCs[i]->UnregisterComponent();
+		SMCs[i]->DestroyComponent();
+	}
+
+	// Clear array
+	SMCs = TArray<USplineMeshComponent*>();
+
+	// Iterate and add relevant spline mesh for each mesh profile
+	for (int i = 0; i < SplineMeshes.Num(); i++)
+	{
+		// Check if mesh is null first, and if spline placement is looped
+		if (SplineMeshes[i].MeshData.Mesh == nullptr)
+			continue;
+		if (SplineMeshes[i].PlacementType != ESplinePlacementType::SPT_LOOPED)
+			continue;
+
+		float splineTotalDistance = Spline->GetSplineLength();
+		float splineStartDistance = splineTotalDistance * SplineMeshes[i].StartOffset;
+		float splineEndDistance = splineTotalDistance * SplineMeshes[i].EndOffset;
+
+		// Calculate bounds
+		FBoxSphereBounds meshBounds = SplineMeshes[i].MeshData.Mesh->GetBounds();
+		// Scale mesh bounds with global scale
+		meshBounds.BoxExtent = meshBounds.BoxExtent;
+
+		// If the asset is larger than the current spline length, we will return without placing anything
+		if (meshBounds.BoxExtent.X*2 > (splineEndDistance - splineStartDistance))
+			continue;
+
+		int steps = (splineEndDistance - splineStartDistance) / (meshBounds.BoxExtent.X*2);
+
+		for (int j = 0; j < steps; j++)
+		{
+			float startDistanceAlongSpline = (j * meshBounds.BoxExtent.X*2) + splineStartDistance;
+			float endDistanceAlongSpline = ((j+1) * meshBounds.BoxExtent.X*2) + splineStartDistance;
+
+			// Calculate start and end locations and tangents from the given spline
+			FVector startPosition = Spline->GetLocationAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::World)+SplineMeshes[i].MeshData.Offset.GetLocation();
+			FVector endPosition = Spline->GetLocationAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::World)+SplineMeshes[i].MeshData.Offset.GetLocation();
+			FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
+			FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
+
+			// Initialize the spline mesh component
+			USplineMeshComponent* smc = NewObject<USplineMeshComponent>(this);	
+			smc->SetStaticMesh(SplineMeshes[i].MeshData.Mesh);
+			smc->SetStartAndEnd(startPosition, startTangent, endPosition, endTangent);
+			smc->SetWorldScale3D(SplineMeshes[i].MeshData.Offset.GetScale3D());
+			smc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			smc->RegisterComponent();
+			SMCs.Add(smc);
+		}
+	}
+}
+
 bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile,
 	TArray<FTransform> &OutTransforms)
 {
@@ -162,10 +221,16 @@ void AASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if(PropertyChangedEvent.MemberProperty->GetName() == "Meshes")
+	if(PropertyChangedEvent.MemberProperty->GetName() == "InstancedMeshes")
 	{
 		// Discard and repopulate ISMs
-		RepopulateISMs();	
+		RepopulateISMs();
+	}
+
+	if (PropertyChangedEvent.MemberProperty->GetName() == "SplineMeshes")
+	{
+		// Discard and recalculate everything for spline meshes
+		PlaceSplineMeshesLooped();
 	}
 	
 	// Recalculate locations
@@ -178,5 +243,8 @@ void AASplinePlacementActor::PostEditMove(bool bFinished)
 	
 	// Recalculate locations
 	PlaceInstancesAlongSpline();
+
+	// Place looped splines
+	PlaceSplineMeshesLooped();
 }
 
