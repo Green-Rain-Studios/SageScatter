@@ -6,6 +6,7 @@
 #include "Components/BillboardComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/SplineComponent.h"
+#include "SageScatterUtils.h"
 
 
 // Sets default values
@@ -126,8 +127,9 @@ void AASplinePlacementActor::PlaceSplineMeshesLooped()
 
 		// Calculate bounds
 		FBoxSphereBounds meshBounds = SplineMeshes[i].MeshData.Mesh->GetBounds();
-		// Scale mesh bounds with global scale
-		meshBounds.BoxExtent = meshBounds.BoxExtent;
+		
+		// Scale mesh bounds with relax multiplier scale
+		meshBounds.BoxExtent = meshBounds.BoxExtent*SplineMeshes[i].RelaxMultiplier;
 
 		// If the asset is larger than the current spline length, we will return without placing anything
 		if (meshBounds.BoxExtent.X*2 > (splineEndDistance - splineStartDistance))
@@ -140,9 +142,18 @@ void AASplinePlacementActor::PlaceSplineMeshesLooped()
 			float startDistanceAlongSpline = (j * meshBounds.BoxExtent.X*2) + splineStartDistance;
 			float endDistanceAlongSpline = ((j+1) * meshBounds.BoxExtent.X*2) + splineStartDistance;
 
+			// Cache fwd, up, right vectors
+			FVector startFwd = Spline->GetDirectionAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector startRight = Spline->GetRightVectorAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector startUp = Spline->GetUpVectorAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
+
+			FVector endFwd = Spline->GetDirectionAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector endRight = Spline->GetRightVectorAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector endUp = Spline->GetUpVectorAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
+
 			// Calculate start and end locations and tangents from the given spline
-			FVector startPosition = Spline->GetLocationAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::World)+SplineMeshes[i].MeshData.Offset.GetLocation();
-			FVector endPosition = Spline->GetLocationAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::World)+SplineMeshes[i].MeshData.Offset.GetLocation();
+			FVector startPosition = Spline->GetLocationAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::World)+USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
+			FVector endPosition = Spline->GetLocationAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::World)+USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
 			FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
 			FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
 
@@ -177,8 +188,13 @@ bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineL
 	{
 		float distanceAlongSpline = i * (MeshProfile.Gap+meshBounds.BoxExtent.X*2) + MeshProfile.StartOffset;
 
+		// Cache fwd, up, right vectors
+		FVector fwd = Spline->GetDirectionAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
+		FVector right = Spline->GetRightVectorAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
+		FVector up = Spline->GetUpVectorAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
+		
 		// Calculate location, rotation, and scale
-		FVector location = Spline->GetLocationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetLocation();
+		FVector location = Spline->GetLocationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(MeshProfile.MeshData.Offset.GetLocation(), fwd, right, up);
 		FRotator rotation =  Spline->GetRotationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
 		FVector scale = Spline->GetScaleAtDistanceAlongSpline(distanceAlongSpline) * MeshProfile.MeshData.Offset.GetScale3D();
 
@@ -201,7 +217,12 @@ bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInsta
 	// Iterate with number of spline points to generate transforms at those locations
 	for(int i = 0; i < numPoints; i++)
 	{
-		FVector location = Spline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetLocation();
+		// Cache fwd, up, right vectors
+		FVector fwd = Spline->GetDirectionAtSplinePoint(i, ESplineCoordinateSpace::Local);
+		FVector right = Spline->GetRightVectorAtSplinePoint(i, ESplineCoordinateSpace::Local);
+		FVector up = Spline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::Local);
+		
+		FVector location = Spline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(MeshProfile.MeshData.Offset.GetLocation(), fwd, right, up);
 		FRotator rotation = Spline->GetRotationAtSplinePoint(i, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
 		FVector scale = Spline->GetScaleAtSplinePoint(i) * MeshProfile.MeshData.Offset.GetScale3D();
 

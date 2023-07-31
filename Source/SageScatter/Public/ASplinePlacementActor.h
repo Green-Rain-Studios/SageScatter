@@ -48,6 +48,10 @@ struct FMeshProfileSpline
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile")
 	ESplinePlacementType PlacementType;
 
+	// "Relaxes" the geometry, for performance. Too high values can lead to mesh not following the spline closely. Reset to original factor with 1
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, EditCondition="PlacementType==ESplinePlacementType::SPT_LOOPED", EditConditionHides))
+	float RelaxMultiplier = 1.f;
+
 	// Offset for spline start (0-1)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1, EditCondition="PlacementType==ESplinePlacementType::SPT_LOOPED", EditConditionHides))
 	float StartOffset = 0.f;
@@ -57,11 +61,11 @@ struct FMeshProfileSpline
 	float EndOffset = 1.f;
 
 	// Distance in units for single spline placement
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin = 0, EditCondition = "PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin=0, EditCondition="PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
 	float StartDistance = 0.f;
 
 	// Total distance this spline mesh should cover from start (set to 0 for full length of spline)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin = 0, EditCondition = "PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin=0, EditCondition="PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
 	float EndDistance = 0.f;
 };
 
