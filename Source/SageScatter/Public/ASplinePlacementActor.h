@@ -6,6 +6,12 @@
 #include "PlacementActorBase.h"
 #include "ASplinePlacementActor.generated.h"
 
+UENUM(BlueprintType, meta=(DisplayName="Instance Placement Type"))
+enum class EInstancePlacementType : uint8
+{
+	IPT_GAP			UMETA(DisplayName = "Place with gap"),
+	IPT_POINT		UMETA(DisplayName = "Place at spline point")
+};
 USTRUCT(BlueprintType)
 struct FMeshProfileSpline
 {
@@ -14,9 +20,12 @@ struct FMeshProfileSpline
 	FMeshProfile MeshData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile")
+	EInstancePlacementType PlacementType;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(EditCondition="PlacementType==EInstancePlacementType::IPT_Gap", EditConditionHides))
 	float Gap = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(EditCondition="PlacementType==EInstancePlacementType::IPT_Gap", EditConditionHides))
 	float StartOffset = 0.f;
 };
 
@@ -46,6 +55,11 @@ protected:
 
 	// Place instances of meshes along the spline
 	void PlaceInstancesAlongSpline();
+
+	// Place instances along spline at regular distances
+	bool CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileSpline MeshProfile, TArray<FTransform> &OutTransforms);
+	// Place instances along spline at spline points
+	bool CalculateTransformsAtSplinePoints(FMeshProfileSpline MeshProfile, TArray<FTransform> &OutTransforms);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))

@@ -77,35 +77,79 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 
 	for(int i = 0; i < ISMs.Num(); i++)
 	{
-		// Error checking. If mesh does not exist, or mesh is bigger than spline length, then skip this one
+		// Error checking. If mesh does not exist then skip this one
 		if(Meshes[i].MeshData.Mesh == nullptr)
 			continue;
-		FMeshProfileSpline meshProfile = Meshes[i];
-		FBoxSphereBounds meshBounds = meshProfile.MeshData.Mesh->GetBounds();
-		// Scale mesh bounds with global scale
-		meshBounds.BoxExtent = meshBounds.BoxExtent*meshProfile.MeshData.Offset.GetScale3D();
-		if(meshBounds.BoxExtent.X*2 > splineLength)
-			continue;
 
-		int steps = splineLength / (meshProfile.Gap+meshBounds.BoxExtent.X*2);
-
-		// Iterate over steps and create array of transforms to add to the ISM
-		UHierarchicalInstancedStaticMeshComponent* ism = ISMs[i];
+		// Different placement types will generate different lists of transforms
 		TArray<FTransform> transforms;
-		for(int j = 0; j <= steps; j++)
+		switch (Meshes[i].PlacementType)
 		{
-			float distanceAlongSpline = j * (meshProfile.Gap+meshBounds.BoxExtent.X*2) + meshProfile.StartOffset;
+		case EInstancePlacementType::IPT_GAP:
+			if(CalculateTransformsAtRegularDistances(splineLength, Meshes[i], transforms))
+				break;
 
-			// Calculate location, rotation, and scale
-			FVector location = Spline->GetLocationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + meshProfile.MeshData.Offset.GetLocation();
-			FRotator rotation =  Spline->GetRotationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + meshProfile.MeshData.Offset.GetRotation().Rotator();
-			FVector scale = Spline->GetScaleAtDistanceAlongSpline(distanceAlongSpline) * meshProfile.MeshData.Offset.GetScale3D();
-
-			transforms.Add(FTransform(rotation, location, scale));
+		case EInstancePlacementType::IPT_POINT:
+			if(CalculateTransformsAtSplinePoints(Meshes[i], transforms))
+			 	break;
 		}
+		
 		// Add instances to ISM
-		ism->AddInstances(transforms,false);
+		ISMs[i]->AddInstances(transforms,false);
 	}
+}
+
+bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileSpline MeshProfile,
+	TArray<FTransform> &OutTransforms)
+{
+	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
+
+	// Scale mesh bounds with global scale
+	meshBounds.BoxExtent = meshBounds.BoxExtent*MeshProfile.MeshData.Offset.GetScale3D();
+
+	// If the asset is larger than the current spline length, we will return without placing anything
+	if(meshBounds.BoxExtent.X*2 > SplineLength)
+		return false;
+
+	int steps = (SplineLength-MeshProfile.StartOffset) / (MeshProfile.Gap+meshBounds.BoxExtent.X*2);
+
+	// Iterate with number of steps to get transform values for that many instances
+	for(int i = 0; i <= steps; i++)
+	{
+		float distanceAlongSpline = i * (MeshProfile.Gap+meshBounds.BoxExtent.X*2) + MeshProfile.StartOffset;
+
+		// Calculate location, rotation, and scale
+		FVector location = Spline->GetLocationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetLocation();
+		FRotator rotation =  Spline->GetRotationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
+		FVector scale = Spline->GetScaleAtDistanceAlongSpline(distanceAlongSpline) * MeshProfile.MeshData.Offset.GetScale3D();
+
+		OutTransforms.Add(FTransform(rotation, location, scale));
+	}
+
+	return true;
+}
+
+bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileSpline MeshProfile,
+	TArray<FTransform>& OutTransforms)
+{
+	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
+
+	// Scale mesh bounds with global scale
+	meshBounds.BoxExtent = meshBounds.BoxExtent*MeshProfile.MeshData.Offset.GetScale3D();
+
+	int numPoints = Spline->GetNumberOfSplinePoints();
+	
+	// Iterate with number of spline points to generate transforms at those locations
+	for(int i = 0; i < numPoints; i++)
+	{
+		FVector location = Spline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetLocation();
+		FRotator rotation = Spline->GetRotationAtSplinePoint(i, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
+		FVector scale = Spline->GetScaleAtSplinePoint(i) * MeshProfile.MeshData.Offset.GetScale3D();
+
+		OutTransforms.Add(FTransform(rotation, location, scale));
+	}
+
+	return true;
 }
 
 // Called every frame
