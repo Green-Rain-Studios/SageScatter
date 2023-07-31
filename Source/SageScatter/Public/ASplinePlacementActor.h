@@ -13,7 +13,7 @@ enum class EInstancePlacementType : uint8
 	IPT_POINT		UMETA(DisplayName = "Place at spline point")
 };
 USTRUCT(BlueprintType)
-struct FMeshProfileSpline
+struct FMeshProfileInstance
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ShowOnlyInnerProperties))
@@ -57,14 +57,14 @@ protected:
 	void PlaceInstancesAlongSpline();
 
 	// Place instances along spline at regular distances
-	bool CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileSpline MeshProfile, TArray<FTransform> &OutTransforms);
+	bool CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile, TArray<FTransform> &OutTransforms);
 	// Place instances along spline at spline points
-	bool CalculateTransformsAtSplinePoints(FMeshProfileSpline MeshProfile, TArray<FTransform> &OutTransforms);
+	bool CalculateTransformsAtSplinePoints(FMeshProfileInstance MeshProfile, TArray<FTransform> &OutTransforms);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))
-	TArray<FMeshProfileSpline> Meshes;
-	
+	TArray<FMeshProfileInstance> InstancedMeshes;
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USplineComponent* Spline;

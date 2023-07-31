@@ -50,14 +50,14 @@ void AASplinePlacementActor::RepopulateISMs()
 	ISMs = TArray<UHierarchicalInstancedStaticMeshComponent*>();
 
 	// Iterate and add each mesh profile as a new ISM
-	for(int i = 0; i < Meshes.Num(); i++)
+	for(int i = 0; i < InstancedMeshes.Num(); i++)
 	{
 		// Check if mesh is null first
-		if(Meshes[i].MeshData.Mesh == nullptr)
+		if(InstancedMeshes[i].MeshData.Mesh == nullptr)
 			continue;
 		
 		UHierarchicalInstancedStaticMeshComponent* ism = NewObject<UHierarchicalInstancedStaticMeshComponent>(this);
-		ism->SetStaticMesh(Meshes[i].MeshData.Mesh);
+		ism->SetStaticMesh(InstancedMeshes[i].MeshData.Mesh);
 		ism->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 		ism->RegisterComponent();
 		ISMs.Add(ism);
@@ -78,19 +78,19 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 	for(int i = 0; i < ISMs.Num(); i++)
 	{
 		// Error checking. If mesh does not exist then skip this one
-		if(Meshes[i].MeshData.Mesh == nullptr)
+		if(InstancedMeshes[i].MeshData.Mesh == nullptr)
 			continue;
 
 		// Different placement types will generate different lists of transforms
 		TArray<FTransform> transforms;
-		switch (Meshes[i].PlacementType)
+		switch (InstancedMeshes[i].PlacementType)
 		{
 		case EInstancePlacementType::IPT_GAP:
-			if(CalculateTransformsAtRegularDistances(splineLength, Meshes[i], transforms))
+			if(CalculateTransformsAtRegularDistances(splineLength, InstancedMeshes[i], transforms))
 				break;
 
 		case EInstancePlacementType::IPT_POINT:
-			if(CalculateTransformsAtSplinePoints(Meshes[i], transforms))
+			if(CalculateTransformsAtSplinePoints(InstancedMeshes[i], transforms))
 			 	break;
 		}
 		
@@ -99,7 +99,7 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 	}
 }
 
-bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileSpline MeshProfile,
+bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile,
 	TArray<FTransform> &OutTransforms)
 {
 	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
@@ -129,7 +129,7 @@ bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineL
 	return true;
 }
 
-bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileSpline MeshProfile,
+bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInstance MeshProfile,
 	TArray<FTransform>& OutTransforms)
 {
 	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
