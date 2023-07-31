@@ -40,9 +40,9 @@ struct FMeshProfileSpline
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1))
 	float StartOffset = 0.f;
 
-	// Offset for spline end (0-1)
+	// Total distance this spline mesh should cover from start (set to 0 for full length of spline)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1))
-	float EndOffset = 1.f;
+	float DistanceCovered = 0.f;
 };
 
 UCLASS(Blueprintable, meta=(DisplayName="Spline Placement Actor", PrioritizeCategories="Setup"))
