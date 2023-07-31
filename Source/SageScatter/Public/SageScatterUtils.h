@@ -26,5 +26,9 @@ UCLASS()
 class SAGESCATTER_API USageScatterUtils : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
-	
+
+public:
+	// Given a position vector and up, right, and forward vectors, calculate correct result vector offset by those values
+	UFUNCTION(BlueprintPure, Category="SageScatter|Helper")
+	static FVector CalculateOffsets(FVector Offset, FVector Forward, FVector Right, FVector Up);	
 };
