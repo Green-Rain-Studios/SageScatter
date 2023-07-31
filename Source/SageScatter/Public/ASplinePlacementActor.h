@@ -29,6 +29,22 @@ struct FMeshProfileInstance
 	float StartOffset = 0.f;
 };
 
+USTRUCT(BlueprintType)
+struct FMeshProfileSpline
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ShowOnlyInnerProperties))
+	FMeshProfile MeshData;
+
+	// Offset for spline start (0-1)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1))
+	float StartOffset = 0.f;
+
+	// Offset for spline end (0-1)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1))
+	float EndOffset = 1.f;
+};
+
 UCLASS(Blueprintable, meta=(DisplayName="Spline Placement Actor", PrioritizeCategories="Setup"))
 class SAGESCATTER_API AASplinePlacementActor : public APlacementActorBase
 {
@@ -64,6 +80,9 @@ protected:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))
 	TArray<FMeshProfileInstance> InstancedMeshes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))
+	TArray<FMeshProfileSpline> SplineMeshes;
 
 protected:
 	UPROPERTY(VisibleAnywhere)
