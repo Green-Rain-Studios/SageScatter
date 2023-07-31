@@ -48,7 +48,7 @@ void AASplinePlacementActor::RepopulateISMs()
 	}
 	
 	// Clear ISM array and create a new one
-	ISMs = TArray<UHierarchicalInstancedStaticMeshComponent*>();
+	ISMs.Empty();
 
 	// Iterate and add each mesh profile as a new ISM
 	for(int i = 0; i < InstancedMeshes.Num(); i++)
@@ -110,7 +110,7 @@ void AASplinePlacementActor::PlaceSplineMeshesLooped()
 	}
 
 	// Clear array
-	SMCs = TArray<USplineMeshComponent*>();
+	SMCs.Empty();
 
 	// Iterate and add relevant spline mesh for each mesh profile
 	for (int i = 0; i < SplineMeshes.Num(); i++)
