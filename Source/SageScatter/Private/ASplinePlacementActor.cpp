@@ -284,3 +284,14 @@ void AASplinePlacementActor::PostEditMove(bool bFinished)
 	PlaceSplineMeshesLooped();
 }
 
+void AASplinePlacementActor::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// Recalculate locations
+	PlaceInstancesAlongSpline();
+
+	// Place looped splines
+	PlaceSplineMeshesLooped();
+}
+
