@@ -139,21 +139,22 @@ void AASplinePlacementActor::PlaceSplineMeshesLooped()
 
 		for (int j = 0; j < steps; j++)
 		{
-			float startDistanceAlongSpline = (j * meshBounds.BoxExtent.X*2) + splineStartDistance;
-			float endDistanceAlongSpline = ((j+1) * meshBounds.BoxExtent.X*2) + splineStartDistance;
+			float startDistanceAlongSpline = (j * meshBounds.BoxExtent.X * 2) + splineStartDistance;
+			FTransform startTransform = GetTransformAtDistanceAlongSpline(startDistanceAlongSpline);
+
+			float endDistanceAlongSpline = ((j + 1) * meshBounds.BoxExtent.X * 2) + splineStartDistance;
+			FTransform endTransform = GetTransformAtDistanceAlongSpline(endDistanceAlongSpline);
 
 			// Cache fwd, up, right vectors
-			FVector startFwd = Spline->GetDirectionAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
-			FVector startRight = Spline->GetRightVectorAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
-			FVector startUp = Spline->GetUpVectorAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector startFwd, startRight, startUp;
+			GetDirectionVectorsAtDistanceAlongSpline(startDistanceAlongSpline, startFwd, startRight, startUp);
 
-			FVector endFwd = Spline->GetDirectionAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
-			FVector endRight = Spline->GetRightVectorAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
-			FVector endUp = Spline->GetUpVectorAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local);
+			FVector endFwd, endRight, endUp;
+			GetDirectionVectorsAtDistanceAlongSpline(endDistanceAlongSpline, endFwd, endRight, endUp);
 
 			// Calculate start and end locations and tangents from the given spline
-			FVector startPosition = Spline->GetLocationAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::World)+USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
-			FVector endPosition = Spline->GetLocationAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::World)+USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
+			FVector startPosition = startTransform.GetLocation() + GetActorLocation() + USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
+			FVector endPosition = endTransform.GetLocation() + GetActorLocation() + USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
 			FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
 			FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
 
@@ -186,17 +187,17 @@ bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineL
 	// Iterate with number of steps to get transform values for that many instances
 	for(int i = 0; i <= steps; i++)
 	{
-		float distanceAlongSpline = i * (MeshProfile.Gap+meshBounds.BoxExtent.X*2) + MeshProfile.StartOffset;
+		float dist = i * (MeshProfile.Gap + meshBounds.BoxExtent.X * 2) + MeshProfile.StartOffset;
+		FTransform transform = GetTransformAtDistanceAlongSpline(dist);
 
 		// Cache fwd, up, right vectors
-		FVector fwd = Spline->GetDirectionAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
-		FVector right = Spline->GetRightVectorAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
-		FVector up = Spline->GetUpVectorAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local);
+		FVector fwd, right, up;
+		GetDirectionVectorsAtDistanceAlongSpline(dist, fwd, right, up);
 		
 		// Calculate location, rotation, and scale
-		FVector location = Spline->GetLocationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(MeshProfile.MeshData.Offset.GetLocation(), fwd, right, up);
-		FRotator rotation =  Spline->GetRotationAtDistanceAlongSpline(distanceAlongSpline, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
-		FVector scale = Spline->GetScaleAtDistanceAlongSpline(distanceAlongSpline) * MeshProfile.MeshData.Offset.GetScale3D();
+		FVector location = transform.GetLocation() + USageScatterUtils::CalculateOffsets(MeshProfile.MeshData.Offset.GetLocation(), fwd, right, up);
+		FRotator rotation =  transform.GetRotation().Rotator() + MeshProfile.MeshData.Offset.GetRotation().Rotator();
+		FVector scale = transform.GetScale3D() * MeshProfile.MeshData.Offset.GetScale3D();
 
 		OutTransforms.Add(FTransform(rotation, location, scale));
 	}
@@ -217,10 +218,12 @@ bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInsta
 	// Iterate with number of spline points to generate transforms at those locations
 	for(int i = 0; i < numPoints; i++)
 	{
+		float dist = Spline->GetDistanceAlongSplineAtSplinePoint(i);
+		FTransform transform = GetTransformAtDistanceAlongSpline(dist);
+
 		// Cache fwd, up, right vectors
-		FVector fwd = Spline->GetDirectionAtSplinePoint(i, ESplineCoordinateSpace::Local);
-		FVector right = Spline->GetRightVectorAtSplinePoint(i, ESplineCoordinateSpace::Local);
-		FVector up = Spline->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::Local);
+		FVector fwd, right, up;
+		GetDirectionVectorsAtDistanceAlongSpline(dist, fwd, right, up);
 		
 		FVector location = Spline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(MeshProfile.MeshData.Offset.GetLocation(), fwd, right, up);
 		FRotator rotation = Spline->GetRotationAtSplinePoint(i, ESplineCoordinateSpace::Local) + MeshProfile.MeshData.Offset.GetRotation().Rotator();
@@ -230,6 +233,18 @@ bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInsta
 	}
 
 	return true;
+}
+
+FTransform AASplinePlacementActor::GetTransformAtDistanceAlongSpline(float Distance)
+{
+	return Spline->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local, true);
+}
+
+void AASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up)
+{
+	Fwd = Spline->GetDirectionAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
+	Right = Spline->GetRightVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
+	Up = Spline->GetUpVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 }
 
 // Called every frame

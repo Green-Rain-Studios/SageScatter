@@ -123,4 +123,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	TArray<USplineMeshComponent*> SMCs;
+
+	FTransform GetTransformAtDistanceAlongSpline(float Distance);
+	void GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up);
 };
