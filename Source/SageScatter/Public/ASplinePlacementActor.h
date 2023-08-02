@@ -1,4 +1,4 @@
-// 2023 Green Rain Studios
+﻿// 2023 Green Rain Studios
 
 #pragma once
 
@@ -91,19 +91,22 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	// Spline placement functions
+	// Instance placement functions
 	void RepopulateISMs();
 
 	// Place instances of meshes along the spline
 	void PlaceInstancesAlongSpline();
 
-	// Place spline meshes
-	void PlaceSplineMeshesLooped();
-
 	// Place instances along spline at regular distances
 	bool CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile, TArray<FTransform> &OutTransforms);
 	// Place instances along spline at spline points
 	bool CalculateTransformsAtSplinePoints(FMeshProfileInstance MeshProfile, TArray<FTransform> &OutTransforms);
+
+	// Spline Mesh placement functions
+	void RecalculateSplineMeshes();
+
+	// Place Spline Mesh components
+	void PlaceSplineMeshComponentsAlongSpline();
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))

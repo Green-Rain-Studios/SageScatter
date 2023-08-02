@@ -100,76 +100,6 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 	}
 }
 
-void AASplinePlacementActor::PlaceSplineMeshesLooped()
-{
-	// First, clear all SplineMeshes
-	for (int i = 0; i < SMCs.Num(); i++)
-	{
-		SMCs[i]->UnregisterComponent();
-		SMCs[i]->DestroyComponent();
-	}
-
-	// Clear array
-	SMCs.Empty();
-
-	// Iterate and add relevant spline mesh for each mesh profile
-	for (int i = 0; i < SplineMeshes.Num(); i++)
-	{
-		// Check if mesh is null first, and if spline placement is looped
-		if (SplineMeshes[i].MeshData.Mesh == nullptr)
-			continue;
-		if (SplineMeshes[i].PlacementType != ESplinePlacementType::SPT_LOOPED)
-			continue;
-
-		float splineTotalDistance = Spline->GetSplineLength();
-		float splineStartDistance = splineTotalDistance * SplineMeshes[i].StartOffset;
-		float splineEndDistance = splineTotalDistance * SplineMeshes[i].EndOffset;
-
-		// Calculate bounds
-		FBoxSphereBounds meshBounds = SplineMeshes[i].MeshData.Mesh->GetBounds();
-		
-		// Scale mesh bounds with relax multiplier scale
-		meshBounds.BoxExtent = meshBounds.BoxExtent*SplineMeshes[i].RelaxMultiplier;
-
-		// If the asset is larger than the current spline length, we will return without placing anything
-		if (meshBounds.BoxExtent.X*2 > (splineEndDistance - splineStartDistance))
-			continue;
-
-		int steps = (splineEndDistance - splineStartDistance) / (meshBounds.BoxExtent.X*2);
-
-		for (int j = 0; j < steps; j++)
-		{
-			float startDistanceAlongSpline = (j * meshBounds.BoxExtent.X * 2) + splineStartDistance;
-			FTransform startTransform = GetTransformAtDistanceAlongSpline(startDistanceAlongSpline);
-
-			float endDistanceAlongSpline = ((j + 1) * meshBounds.BoxExtent.X * 2) + splineStartDistance;
-			FTransform endTransform = GetTransformAtDistanceAlongSpline(endDistanceAlongSpline);
-
-			// Cache fwd, up, right vectors
-			FVector startFwd, startRight, startUp;
-			GetDirectionVectorsAtDistanceAlongSpline(startDistanceAlongSpline, startFwd, startRight, startUp);
-
-			FVector endFwd, endRight, endUp;
-			GetDirectionVectorsAtDistanceAlongSpline(endDistanceAlongSpline, endFwd, endRight, endUp);
-
-			// Calculate start and end locations and tangents from the given spline
-			FVector startPosition = startTransform.GetLocation() + GetActorLocation() + USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
-			FVector endPosition = endTransform.GetLocation() + GetActorLocation() + USageScatterUtils::CalculateOffsets(SplineMeshes[i].MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
-			FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
-			FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDistanceAlongSpline, ESplineCoordinateSpace::Local).GetClampedToMaxSize(meshBounds.BoxExtent.X * 2);
-
-			// Initialize the spline mesh component
-			USplineMeshComponent* smc = NewObject<USplineMeshComponent>(this);	
-			smc->SetStaticMesh(SplineMeshes[i].MeshData.Mesh);
-			smc->SetStartAndEnd(startPosition, startTangent, endPosition, endTangent);
-			smc->SetWorldScale3D(SplineMeshes[i].MeshData.Offset.GetScale3D());
-			smc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
-			smc->RegisterComponent();
-			SMCs.Add(smc);
-		}
-	}
-}
-
 bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile,
 	TArray<FTransform> &OutTransforms)
 {
@@ -235,6 +165,142 @@ bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInsta
 	return true;
 }
 
+void AASplinePlacementActor::RecalculateSplineMeshes()
+{
+	// First we calculate total number of spline meshes needed with current spline length
+	int requiredSMCs = 0;
+
+	for(int i = 0; i < SplineMeshes.Num(); i++)
+	{
+		// If the mesh is not set, skip this profile
+		if(SplineMeshes[i].MeshData.Mesh == nullptr)
+			continue;
+
+		// If mesh is single, increment required by 1. Else we calculate using steps
+		if(SplineMeshes[i].PlacementType == ESplinePlacementType::SPT_SINGLE)
+		{
+			requiredSMCs++;
+		}
+		else if(SplineMeshes[i].PlacementType == ESplinePlacementType::SPT_LOOPED)
+		{
+			// Get extents of total mesh and calculate number of steps required to place mesh along spline
+			// Subtract end and start distance from it
+			const float finalSplineLength = Spline->GetSplineLength() * SplineMeshes[i].EndOffset - Spline->GetSplineLength() * SplineMeshes[i].StartOffset;
+
+			const FVector extent = SplineMeshes[i].MeshData.Mesh->GetBounds().BoxExtent * SplineMeshes[i].MeshData.Offset.GetScale3D();
+
+			const int steps = finalSplineLength / (extent.X * 2 * SplineMeshes[i].RelaxMultiplier);
+
+			// Number of steps = number of SMCs needed
+			requiredSMCs += steps;
+		}
+	}
+
+	GetComponents<USplineMeshComponent>(SMCs);
+	// If there are less Spline mesh components than needed, we need to create more. If there are more, we need to destroy
+	if(SMCs.Num() < requiredSMCs)
+	{
+		for(int i = SMCs.Num(); i < requiredSMCs; i++)
+		{
+			USplineMeshComponent* smc = NewObject<USplineMeshComponent>(this);
+			smc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			smc->RegisterComponent();
+			SMCs.Add(smc);
+		}
+	}
+	else if(SMCs.Num() > requiredSMCs)
+	{
+		// Destroy the excess components
+		for(int i = requiredSMCs; i < SMCs.Num(); i++)
+		{
+			SMCs[i]->UnregisterComponent();
+			SMCs[i]->DestroyComponent();
+		}
+
+		// Remove the destroyed components from the array
+		SMCs.RemoveAt(requiredSMCs, SMCs.Num() - requiredSMCs);
+	}
+}
+
+void AASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
+{
+	int currentIdx = 0;
+	// Place SMCs based on mesh data
+	for (FMeshProfileSpline splineMeshProfile : SplineMeshes)
+	{
+		// If the mesh is not set, skip this profile
+		if(splineMeshProfile.MeshData.Mesh == nullptr)
+			continue;
+		
+		// Get extents of total mesh and calculate number of steps required to place mesh along spline
+		// Subtract end and start distance from it
+		const float rawSplineLength = Spline->GetSplineLength();
+		const float finalSplineLength = rawSplineLength * splineMeshProfile.EndOffset - rawSplineLength * splineMeshProfile.StartOffset;
+
+		const FVector extent = splineMeshProfile.MeshData.Mesh->GetBounds().BoxExtent * splineMeshProfile.MeshData.Offset.GetScale3D();
+
+		// Use the steps to find transforms and place SMCs
+		if(splineMeshProfile.PlacementType == ESplinePlacementType::SPT_LOOPED)
+		{
+			const float singleStep = (extent.X * 2 * splineMeshProfile.RelaxMultiplier);
+			const int steps = finalSplineLength / singleStep;
+			
+			for(int i = 0; i < steps; i++)
+			{
+				const float startDist = i * singleStep + rawSplineLength * splineMeshProfile.StartOffset;
+				const float endDist = (i + 1) * singleStep + rawSplineLength * splineMeshProfile.StartOffset;
+				
+				// For spline meshes, there is a start and end transform
+				FTransform startTransform = Spline->GetTransformAtDistanceAlongSpline(startDist, ESplineCoordinateSpace::Local, true);
+				FTransform endTransform = Spline->GetTransformAtDistanceAlongSpline(endDist, ESplineCoordinateSpace::Local, true);
+				
+				// Cache fwd, up, right vectors
+				FVector startFwd, startRight, startUp;
+				GetDirectionVectorsAtDistanceAlongSpline(startDist, startFwd, startRight, startUp);
+				FVector endFwd, endRight, endUp;
+				GetDirectionVectorsAtDistanceAlongSpline(endDist, endFwd, endRight, endUp);
+
+				// Calculate locations
+				FVector startLocation = GetActorLocation() + startTransform.GetLocation() + USageScatterUtils::CalculateOffsets(splineMeshProfile.MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
+				FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDist, ESplineCoordinateSpace::Local).GetClampedToMaxSize(singleStep);
+				FVector endLocation = GetActorLocation() + endTransform.GetLocation() + USageScatterUtils::CalculateOffsets(splineMeshProfile.MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
+				FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDist, ESplineCoordinateSpace::Local).GetClampedToMaxSize(singleStep);
+				
+				// Assign mesh and use SMC
+				SMCs[currentIdx]->SetStaticMesh(splineMeshProfile.MeshData.Mesh);
+				SMCs[currentIdx]->SetStartAndEnd(startLocation, startTangent, endLocation, endTangent);
+
+				// Increment index to use (since we are fitting a dynamic 2d array into a 1d array)
+				currentIdx++;
+			}
+		}
+		else if(splineMeshProfile.PlacementType == ESplinePlacementType::SPT_SINGLE)
+		{
+			const float startDist = splineMeshProfile.StartDistance;
+			const float endDist = startDist + splineMeshProfile.MeshLength;
+
+			// Cache fwd, up, right vectors
+			FVector startFwd, startRight, startUp;
+			GetDirectionVectorsAtDistanceAlongSpline(startDist, startFwd, startRight, startUp);
+			FVector endFwd, endRight, endUp;
+			GetDirectionVectorsAtDistanceAlongSpline(endDist, endFwd, endRight, endUp);
+
+			// Calculate locations
+			FVector startLocation = GetActorLocation() + Spline->GetLocationAtDistanceAlongSpline(startDist, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(splineMeshProfile.MeshData.Offset.GetLocation(), startFwd, startRight, startUp);
+			FVector startTangent = Spline->GetTangentAtDistanceAlongSpline(startDist, ESplineCoordinateSpace::Local).GetClampedToMaxSize(splineMeshProfile.MeshLength);
+			FVector endLocation = GetActorLocation() + Spline->GetLocationAtDistanceAlongSpline(endDist, ESplineCoordinateSpace::Local) + USageScatterUtils::CalculateOffsets(splineMeshProfile.MeshData.Offset.GetLocation(), endFwd, endRight, endUp);
+			FVector endTangent = Spline->GetTangentAtDistanceAlongSpline(endDist, ESplineCoordinateSpace::Local).GetClampedToMaxSize(splineMeshProfile.MeshLength);
+
+			// Assign mesh and use SMC
+			SMCs[currentIdx]->SetStaticMesh(splineMeshProfile.MeshData.Mesh);
+			SMCs[currentIdx]->SetStartAndEnd(startLocation, startTangent, endLocation, endTangent);
+			
+			// Increment index to use (since we are fitting a dynamic 2d array into a 1d array)
+			currentIdx++;
+		}
+	}
+}
+
 FTransform AASplinePlacementActor::GetTransformAtDistanceAlongSpline(float Distance)
 {
 	return Spline->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local, true);
@@ -257,16 +323,19 @@ void AASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	GEngine->AddOnScreenDebugMessage(1, 2, FColor::Emerald, PropertyChangedEvent.GetPropertyName().ToString());
+
 	if(PropertyChangedEvent.MemberProperty->GetName() == "InstancedMeshes")
 	{
 		// Discard and repopulate ISMs
 		RepopulateISMs();
 	}
 
+	// Making this as granular as possible for max performance
 	if (PropertyChangedEvent.MemberProperty->GetName() == "SplineMeshes")
 	{
-		// Discard and recalculate everything for spline meshes
-		PlaceSplineMeshesLooped();
+		RecalculateSplineMeshes();
+		PlaceSplineMeshComponentsAlongSpline();
 	}
 	
 	// Recalculate locations
@@ -280,8 +349,9 @@ void AASplinePlacementActor::PostEditMove(bool bFinished)
 	// Recalculate locations
 	PlaceInstancesAlongSpline();
 
-	// Place looped splines
-	PlaceSplineMeshesLooped();
+	// Place splines
+	RecalculateSplineMeshes();
+	PlaceSplineMeshComponentsAlongSpline();
 }
 
 void AASplinePlacementActor::PostEditUndo()
@@ -291,7 +361,8 @@ void AASplinePlacementActor::PostEditUndo()
 	// Recalculate locations
 	PlaceInstancesAlongSpline();
 
-	// Place looped splines
-	PlaceSplineMeshesLooped();
+	// Place splines
+	RecalculateSplineMeshes();
+	PlaceSplineMeshComponentsAlongSpline();
 }
 
