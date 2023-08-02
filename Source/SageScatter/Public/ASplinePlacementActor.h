@@ -1,4 +1,4 @@
-﻿// 2023 Green Rain Studios
+// 2023 Green Rain Studios
 
 #pragma once
 
@@ -60,13 +60,13 @@ struct FMeshProfileSpline
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile", meta=(ClampMin=0, ClampMax=1, EditCondition="PlacementType==ESplinePlacementType::SPT_LOOPED", EditConditionHides))
 	float EndOffset = 1.f;
 
-	// Distance in units for single spline placement
+	// Distance in units for single spline placement start
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin=0, EditCondition="PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
 	float StartDistance = 0.f;
 
-	// Total distance this spline mesh should cover from start (set to 0 for full length of spline)
+	// Length of the spline from Start Distance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Profile", meta = (ClampMin=0, EditCondition="PlacementType==ESplinePlacementType::SPT_SINGLE", EditConditionHides))
-	float EndDistance = 0.f;
+	float MeshLength = 100.f;
 };
 
 UCLASS(Blueprintable, meta=(DisplayName="Spline Placement Actor", PrioritizeCategories="Setup"))
