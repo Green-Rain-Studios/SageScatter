@@ -1,4 +1,4 @@
-// 2023 Green Rain Studios
+﻿// 2023 Green Rain Studios
 
 
 #include "SplinePlacementActor.h"

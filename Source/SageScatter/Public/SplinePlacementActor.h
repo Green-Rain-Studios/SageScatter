@@ -21,6 +21,7 @@ enum class ESplinePlacementType : uint8
 	SPT_SINGLE		UMETA(DisplayName = "Single spline mesh")
 };
 
+// This structure represents all the data needed to create mesh instances
 USTRUCT(BlueprintType)
 struct FMeshProfileInstance
 {
@@ -38,6 +39,7 @@ struct FMeshProfileInstance
 	float StartOffset = 0.f;
 };
 
+// This structure represents all the data needed to create spline meshes
 USTRUCT(BlueprintType)
 struct FMeshProfileSpline
 {
