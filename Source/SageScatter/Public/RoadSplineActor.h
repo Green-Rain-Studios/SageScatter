@@ -1,10 +1,12 @@
-// 2023 Green Rain Studios
+﻿// 2023 Green Rain Studios
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "SplinePlacementActor.h"
 #include "RoadSplineActor.generated.h"
+
+class UPointLightComponent;
 
 USTRUCT(BlueprintType)
 struct FPointLightProfile
@@ -53,9 +55,31 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostEditUndo() override;
+#endif
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	// Create required number of point lights based on length of spline and gap
+	void CreatePLCs();
+
+	// Update Existing Point Lights
+	void UpdatePLCs();
+
+	// Update properties of a single light from profile
+	void UpdatePointLightPropertiesFromProfile(const FPointLightProfile& LightProfile, UPointLightComponent* PointLight);
+	
+
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup|Lights", meta=(ShowOnlyInnerProperties))
+	TArray<FPointLightProfile> PointLights;
+	
+protected:
+	UPROPERTY(VisibleInstanceOnly)
+	TArray<UPointLightComponent*> PLCs;
 };
