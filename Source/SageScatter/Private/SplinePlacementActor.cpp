@@ -1,4 +1,4 @@
-﻿// 2023 Green Rain Studios
+// 2023 Green Rain Studios
 
 
 #include "SplinePlacementActor.h"
@@ -26,7 +26,7 @@ ASplinePlacementActor::ASplinePlacementActor()
 	Icn = CreateDefaultSubobject<UBillboardComponent>(TEXT("Icn"));
 	Icn->Sprite = ICN.Object;
 	Icn->bIsScreenSizeScaled = true;
-	Icn->ScreenSize = 0.05f;
+	Icn->ScreenSize = BILLBOARD_SPRITE_SIZE;
 	Icn->SetHiddenInGame(true);
 	Icn->SetupAttachment(RootComponent);
 }

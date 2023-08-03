@@ -7,6 +7,8 @@
 #include "SageScatterUtils.h"
 #include "PlacementActorBase.generated.h"
 
+#define BILLBOARD_SPRITE_SIZE 0.1
+
 UCLASS(Abstract, NotBlueprintable, NotBlueprintType)
 class APlacementActorBase : public AActor
 {
