@@ -116,7 +116,7 @@ public:
 	TArray<FMeshProfileSpline> SplineMeshes;
 
 protected:
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleDefaultsOnly)
 	class USplineComponent* Spline;
 
 	UPROPERTY()
@@ -125,7 +125,7 @@ protected:
 	UPROPERTY()
 	TArray<UHierarchicalInstancedStaticMeshComponent*> ISMs;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY()
 	TArray<USplineMeshComponent*> SMCs;
 
 	FTransform GetTransformAtDistanceAlongSpline(float Distance);
