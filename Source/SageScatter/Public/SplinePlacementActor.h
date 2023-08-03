@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "PlacementActorBase.h"
 #include "Components/SplineMeshComponent.h"
-#include "ASplinePlacementActor.generated.h"
+#include "SplinePlacementActor.generated.h"
 
 UENUM(BlueprintType, meta=(DisplayName="Instance Placement Type"))
 enum class EInstancePlacementType : uint8
@@ -70,13 +70,13 @@ struct FMeshProfileSpline
 };
 
 UCLASS(Blueprintable, meta=(DisplayName="Spline Placement Actor", PrioritizeCategories="Setup"))
-class SAGESCATTER_API AASplinePlacementActor : public APlacementActorBase
+class SAGESCATTER_API ASplinePlacementActor : public APlacementActorBase
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	AASplinePlacementActor();
+	ASplinePlacementActor();
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

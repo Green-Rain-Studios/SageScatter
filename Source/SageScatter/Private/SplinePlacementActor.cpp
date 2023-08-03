@@ -1,7 +1,7 @@
 ﻿// 2023 Green Rain Studios
 
 
-#include "ASplinePlacementActor.h"
+#include "SplinePlacementActor.h"
 
 #include "Components/BillboardComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -10,7 +10,7 @@
 
 
 // Sets default values
-AASplinePlacementActor::AASplinePlacementActor()
+ASplinePlacementActor::ASplinePlacementActor()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -32,13 +32,13 @@ AASplinePlacementActor::AASplinePlacementActor()
 }
 
 // Called when the game starts or when spawned
-void AASplinePlacementActor::BeginPlay()
+void ASplinePlacementActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
 }
 
-void AASplinePlacementActor::RepopulateISMs()
+void ASplinePlacementActor::RepopulateISMs()
 {
 	// Delete previous ISMs
 	for (int i = 0; i < ISMs.Num(); i++)
@@ -65,7 +65,7 @@ void AASplinePlacementActor::RepopulateISMs()
 	}
 }
 
-void AASplinePlacementActor::PlaceInstancesAlongSpline()
+void ASplinePlacementActor::PlaceInstancesAlongSpline()
 {
 	// First we clear all ISMs of their instances
 	for(int i = 0; i < ISMs.Num(); i++)
@@ -100,7 +100,7 @@ void AASplinePlacementActor::PlaceInstancesAlongSpline()
 	}
 }
 
-bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile,
+bool ASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLength, FMeshProfileInstance MeshProfile,
 	TArray<FTransform> &OutTransforms)
 {
 	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
@@ -135,7 +135,7 @@ bool AASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineL
 	return true;
 }
 
-bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInstance MeshProfile,
+bool ASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInstance MeshProfile,
 	TArray<FTransform>& OutTransforms)
 {
 	FBoxSphereBounds meshBounds = MeshProfile.MeshData.Mesh->GetBounds();
@@ -165,7 +165,7 @@ bool AASplinePlacementActor::CalculateTransformsAtSplinePoints(FMeshProfileInsta
 	return true;
 }
 
-void AASplinePlacementActor::RecalculateSplineMeshes()
+void ASplinePlacementActor::RecalculateSplineMeshes()
 {
 	// First we calculate total number of spline meshes needed with current spline length
 	int requiredSMCs = 0;
@@ -222,7 +222,7 @@ void AASplinePlacementActor::RecalculateSplineMeshes()
 	}
 }
 
-void AASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
+void ASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 {
 	int currentIdx = 0;
 	// Place SMCs based on mesh data
@@ -301,12 +301,12 @@ void AASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 	}
 }
 
-FTransform AASplinePlacementActor::GetTransformAtDistanceAlongSpline(float Distance)
+FTransform ASplinePlacementActor::GetTransformAtDistanceAlongSpline(float Distance)
 {
 	return Spline->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local, true);
 }
 
-void AASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up)
+void ASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up)
 {
 	Fwd = Spline->GetDirectionAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 	Right = Spline->GetRightVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
@@ -314,12 +314,12 @@ void AASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Dist
 }
 
 // Called every frame
-void AASplinePlacementActor::Tick(float DeltaTime)
+void ASplinePlacementActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
-void AASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void ASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -342,7 +342,7 @@ void AASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	PlaceInstancesAlongSpline();
 }
 
-void AASplinePlacementActor::PostEditMove(bool bFinished)
+void ASplinePlacementActor::PostEditMove(bool bFinished)
 {
 	Super::PostEditMove(bFinished);
 	
@@ -354,7 +354,7 @@ void AASplinePlacementActor::PostEditMove(bool bFinished)
 	PlaceSplineMeshComponentsAlongSpline();
 }
 
-void AASplinePlacementActor::PostEditUndo()
+void ASplinePlacementActor::PostEditUndo()
 {
 	Super::PostEditUndo();
 
