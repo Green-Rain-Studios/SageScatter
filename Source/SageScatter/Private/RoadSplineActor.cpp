@@ -40,7 +40,7 @@ void ARoadSplineActor::CreatePLCs()
 			// Subtract end and start distance from it
 			const float finalSplineLength = Spline->GetSplineLength() - PointLights[i].StartOffset;
 			PointLights[i].Gap = PointLights[i].Gap <= 0 ? 1.f : PointLights[i].Gap;
-			const int steps = finalSplineLength / PointLights[i].Gap;
+			const int steps = finalSplineLength / FMath::Min<float>(PointLights[i].Gap, finalSplineLength);
 
 			// Number of steps = number of SMCs needed
 			requiredPLCs += steps;
@@ -105,7 +105,7 @@ void ARoadSplineActor::UpdatePLCs()
 		{
 			// Divide the total spline into equidistant steps based on the gap between light profiles
 			const float finalSplineLength = Spline->GetSplineLength() - LightProfile.StartOffset;
-			const int steps = finalSplineLength/LightProfile.Gap;
+			const int steps = finalSplineLength/FMath::Min<float>(LightProfile.Gap, finalSplineLength);
 
 			for(int i = 0; i < steps; i++)
 			{

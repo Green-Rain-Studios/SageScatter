@@ -41,6 +41,7 @@ void ASplinePlacementActor::BeginPlay()
 void ASplinePlacementActor::RepopulateISMs()
 {
 	// Delete previous ISMs
+	GetComponents<UHierarchicalInstancedStaticMeshComponent>(ISMs);
 	for (int i = 0; i < ISMs.Num(); i++)
 	{
 		ISMs[i]->UnregisterComponent();
@@ -112,7 +113,7 @@ bool ASplinePlacementActor::CalculateTransformsAtRegularDistances(float SplineLe
 	if(meshBounds.BoxExtent.X*2 > SplineLength)
 		return false;
 
-	int steps = (SplineLength-MeshProfile.StartOffset) / (MeshProfile.Gap+meshBounds.BoxExtent.X*2);
+	const int steps = (SplineLength-MeshProfile.StartOffset) / FMath::Min<float>(MeshProfile.Gap+meshBounds.BoxExtent.X*2, SplineLength-MeshProfile.StartOffset);
 
 	// Iterate with number of steps to get transform values for that many instances
 	for(int i = 0; i <= steps; i++)
@@ -189,7 +190,8 @@ void ASplinePlacementActor::RecalculateSplineMeshes()
 
 			const FVector extent = SplineMeshes[i].MeshData.Mesh->GetBounds().BoxExtent * SplineMeshes[i].MeshData.Offset.GetScale3D();
 
-			const int steps = finalSplineLength / (extent.X * 2 * SplineMeshes[i].RelaxMultiplier);
+			const float singleStep = FMath::Min<float>(extent.X * 2 * SplineMeshes[i].RelaxMultiplier, finalSplineLength);
+			const int steps = finalSplineLength / singleStep;
 
 			// Number of steps = number of SMCs needed
 			requiredSMCs += steps;
@@ -242,7 +244,8 @@ void ASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 		// Use the steps to find transforms and place SMCs
 		if(splineMeshProfile.PlacementType == ESplinePlacementType::SPT_LOOPED)
 		{
-			const float singleStep = (extent.X * 2 * splineMeshProfile.RelaxMultiplier);
+			// Single step should be the extent of the mesh, or the length of the spline if that is smaller
+			const float singleStep = FMath::Min<float>(extent.X * 2 * splineMeshProfile.RelaxMultiplier, finalSplineLength);
 			const int steps = finalSplineLength / singleStep;
 			
 			for(int i = 0; i < steps; i++)
@@ -358,6 +361,19 @@ void ASplinePlacementActor::PostEditUndo()
 {
 	Super::PostEditUndo();
 
+	// Recalculate locations
+	PlaceInstancesAlongSpline();
+
+	// Place splines
+	RecalculateSplineMeshes();
+	PlaceSplineMeshComponentsAlongSpline();
+}
+
+void ASplinePlacementActor::PostEditImport()
+{
+	Super::PostEditImport();
+
+	RepopulateISMs();
 	// Recalculate locations
 	PlaceInstancesAlongSpline();
 
