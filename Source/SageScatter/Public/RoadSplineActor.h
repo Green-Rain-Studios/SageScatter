@@ -36,7 +36,7 @@ struct FPointLightProfile
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup")
 	EInstancePlacementType PlacementType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup", meta=(ClampMin=0.1, EditCondition="PlacementType==EInstancePlacementType::IPT_Gap", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup", meta=(ClampMin=1, EditCondition="PlacementType==EInstancePlacementType::IPT_Gap", EditConditionHides))
 	float Gap = 100.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup", meta=(EditCondition="PlacementType==EInstancePlacementType::IPT_Gap", EditConditionHides))

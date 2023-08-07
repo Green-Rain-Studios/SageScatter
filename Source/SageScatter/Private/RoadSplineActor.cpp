@@ -39,7 +39,7 @@ void ARoadSplineActor::CreatePLCs()
 			// Get extents of total mesh and calculate number of steps required to place mesh along spline
 			// Subtract end and start distance from it
 			const float finalSplineLength = Spline->GetSplineLength() - PointLights[i].StartOffset;
-
+			PointLights[i].Gap = PointLights[i].Gap <= 0 ? 1.f : PointLights[i].Gap;
 			const int steps = finalSplineLength / PointLights[i].Gap;
 
 			// Number of steps = number of SMCs needed
@@ -56,6 +56,7 @@ void ARoadSplineActor::CreatePLCs()
 			UPointLightComponent* plc = NewObject<UPointLightComponent>(this);
 			plc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 			plc->RegisterComponent();
+			plc->SetIntensityUnits(ELightUnits::Candelas);
 			PLCs.Add(plc);
 		}
 	}
@@ -134,7 +135,7 @@ void ARoadSplineActor::UpdatePointLightPropertiesFromProfile(const FPointLightPr
 		return;
 	
 	// Set all properties of the light from the light profile
-	PointLight->Intensity = LightProfile.Intensity;
+	PointLight->SetLightBrightness(LightProfile.Intensity);
 	PointLight->SetLightColor(LightProfile.LightColor);
 	PointLight->SetAttenuationRadius(LightProfile.AttenuationRadius);
 	PointLight->SetSourceRadius(LightProfile.SourceRadius);
@@ -145,8 +146,6 @@ void ARoadSplineActor::UpdatePointLightPropertiesFromProfile(const FPointLightPr
 
 	PointLight->bAffectsWorld = LightProfile.AffectsWorld;
 	PointLight->SetCastShadows(LightProfile.CastShadows);
-
-	PointLight->MarkRenderStateDirty();
 }
 
 // Called every frame
