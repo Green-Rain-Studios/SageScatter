@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "PlacementActorBase.h"
 #include "Components/SplineMeshComponent.h"
-#include "ASplinePlacementActor.generated.h"
+#include "SplinePlacementActor.generated.h"
 
 UENUM(BlueprintType, meta=(DisplayName="Instance Placement Type"))
 enum class EInstancePlacementType : uint8
@@ -21,6 +21,7 @@ enum class ESplinePlacementType : uint8
 	SPT_SINGLE		UMETA(DisplayName = "Single spline mesh")
 };
 
+// This structure represents all the data needed to create mesh instances
 USTRUCT(BlueprintType)
 struct FMeshProfileInstance
 {
@@ -38,6 +39,7 @@ struct FMeshProfileInstance
 	float StartOffset = 0.f;
 };
 
+// This structure represents all the data needed to create spline meshes
 USTRUCT(BlueprintType)
 struct FMeshProfileSpline
 {
@@ -70,13 +72,13 @@ struct FMeshProfileSpline
 };
 
 UCLASS(Blueprintable, meta=(DisplayName="Spline Placement Actor", PrioritizeCategories="Setup"))
-class SAGESCATTER_API AASplinePlacementActor : public APlacementActorBase
+class SAGESCATTER_API ASplinePlacementActor : public APlacementActorBase
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	AASplinePlacementActor();
+	ASplinePlacementActor();
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -85,6 +87,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditUndo() override;
+	virtual void PostEditImport() override;
 #endif
 
 protected:
@@ -116,7 +119,7 @@ public:
 	TArray<FMeshProfileSpline> SplineMeshes;
 
 protected:
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleDefaultsOnly)
 	class USplineComponent* Spline;
 
 	UPROPERTY()
@@ -125,7 +128,7 @@ protected:
 	UPROPERTY()
 	TArray<UHierarchicalInstancedStaticMeshComponent*> ISMs;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY()
 	TArray<USplineMeshComponent*> SMCs;
 
 	FTransform GetTransformAtDistanceAlongSpline(float Distance);
