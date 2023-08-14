@@ -80,6 +80,6 @@ public:
 	TArray<FPointLightProfile> PointLights;
 	
 protected:
-	UPROPERTY(VisibleInstanceOnly)
+	UPROPERTY()
 	TArray<UPointLightComponent*> PLCs;
 };
