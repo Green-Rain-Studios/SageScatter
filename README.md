@@ -14,7 +14,7 @@ Versions will follow the usual `major.minor.fix` versioning system for tagging. 
 This plugin will be considered to be at version 1 when it reaches parity with the internal tooling that is being ported.
 
 - [x] Generic spline placement actor
-- [ ] [#1](../../issues/1)
+- [x] [#1](../../issues/1)
 - [ ] [#2](../../issues/2)
 
 ## Contributing
