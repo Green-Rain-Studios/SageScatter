@@ -5,6 +5,7 @@
 
 #include "Components/BillboardComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SplineComponent.h"
 #include "SageScatterUtils.h"
 
@@ -98,6 +99,8 @@ void ASplinePlacementActor::PlaceInstancesAlongSpline()
 		
 		// Add instances to ISM
 		ISMs[i]->AddInstances(transforms,false);
+		CreatePLCs(i);
+		UpdatePLCs(i);
 	}
 }
 
@@ -304,6 +307,58 @@ void ASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 	}
 }
 
+void ASplinePlacementActor::CreatePLCs(const int idx)
+{
+	// If the light doesnt need to be added, we skip it
+	if(!InstancedMeshes[idx].bActivatePointLight)
+	{
+		for(UPointLightComponent* pl : InstancedMeshes[idx].PLCs)
+		{
+			pl->UnregisterComponent();
+			pl->DestroyComponent();
+		}
+		
+		// Clear array
+		InstancedMeshes[idx].PLCs.Empty();
+
+		return;
+	}
+
+	if(InstancedMeshes[idx].PLCs.Num() == ISMs[idx]->GetInstanceCount())
+		return;
+
+	// Clear array
+	InstancedMeshes[idx].PLCs.Empty();
+	const int instanceCount = ISMs[idx]->GetInstanceCount();
+	
+	for(int i = 0; i < instanceCount; i++)
+	{		
+		UPointLightComponent* plc = NewObject<UPointLightComponent>(this);
+		plc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+		plc->RegisterComponent();
+		plc->SetIntensityUnits(ELightUnits::Candelas);
+		InstancedMeshes[idx].PLCs.Add(plc);
+	}
+}
+
+void ASplinePlacementActor::UpdatePLCs(const int idx)
+{
+	// If the light doesnt need to be added, we skip it
+	if(!InstancedMeshes[idx].bActivatePointLight)
+		return;
+	
+	for(int i = 0; i < ISMs[idx]->GetInstanceCount(); i++)
+	{
+		FTransform transform;
+		ISMs[idx]->GetInstanceTransform(i, transform);
+		transform.SetLocation(transform.GetLocation() + USageScatterUtils::CalculateOffsets(InstancedMeshes[idx].LightData.Offset, transform.GetUnitAxis(EAxis::X), transform.GetUnitAxis(EAxis::Y), transform.GetUnitAxis(EAxis::Z)));
+		
+		// Set data on point light component
+		InstancedMeshes[idx].PLCs[i]->SetRelativeTransform(transform);
+		UpdatePointLightPropertiesFromProfile(InstancedMeshes[idx].LightData, InstancedMeshes[idx].PLCs[i]);
+	}
+}
+
 FTransform ASplinePlacementActor::GetTransformAtDistanceAlongSpline(float Distance)
 {
 	return Spline->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local, true);
@@ -314,6 +369,26 @@ void ASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Dista
 	Fwd = Spline->GetDirectionAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 	Right = Spline->GetRightVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 	Up = Spline->GetUpVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
+}
+
+void ASplinePlacementActor::UpdatePointLightPropertiesFromProfile(const FPointLightProfile& LightProfile,
+	UPointLightComponent* PointLight)
+{
+	if(PointLight == nullptr)
+		return;
+	
+	// Set all properties of the light from the light profile
+	PointLight->Intensity = LightProfile.Intensity;
+	PointLight->SetLightColor(LightProfile.LightColor);
+	PointLight->AttenuationRadius = LightProfile.AttenuationRadius;
+	PointLight->SourceRadius = LightProfile.SourceRadius;
+	
+	PointLight->bUseTemperature = LightProfile.bUseTemperature;    
+	if(LightProfile.bUseTemperature)
+		PointLight->Temperature = LightProfile.Temperature;
+
+	PointLight->bAffectsWorld = LightProfile.AffectsWorld;
+	PointLight->CastShadows = LightProfile.CastShadows;
 }
 
 // Called every frame
