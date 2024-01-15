@@ -9,3 +9,14 @@ FVector USageScatterUtils::CalculateOffsets(FVector Offset, FVector Forward, FVe
 	// We scale each direction vector by its corresponding distance and then add the results together.
 	return Offset.X*Forward + Offset.Y*Right + Offset.Z*Up;
 }
+
+FRotator USageScatterUtils::MakeRotatorFromAxes(FVector Forward, FVector Right, FVector Up)
+{
+	Forward.Normalize();
+	Right.Normalize();
+	Up.Normalize();
+
+	FMatrix RotMatrix(Forward, Right, Up, FVector::ZeroVector);
+
+	return RotMatrix.Rotator();
+}
