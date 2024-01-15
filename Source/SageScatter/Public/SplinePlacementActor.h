@@ -7,7 +7,7 @@
 #include "Components/SplineMeshComponent.h"
 #include "SplinePlacementActor.generated.h"
 
-class UPointLightComponent;
+class ULocalLightComponent;
 
 UENUM(BlueprintType, meta=(DisplayName="Instance Placement Type"))
 enum class EInstancePlacementType : uint8
@@ -23,11 +23,21 @@ enum class ESplinePlacementType : uint8
 	SPT_SINGLE		UMETA(DisplayName = "Single spline mesh")
 };
 
+UENUM(BlueprintType, meta = (DisplayName = "Light Type"))
+enum class ELightType : uint8
+{
+	LT_POINT	UMETA(DisplayName = "Point light"),
+	LT_SPOT		UMETA(DisplayName = "Spotlight"),
+};
+
 // This structure represents all the data needed to create a point light profile
 USTRUCT(BlueprintType)
 struct FPointLightProfile
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light")
+	ELightType Type;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light", meta=(ClampMin = 0, Units="Candela"))
 	float Intensity = 8.f;
@@ -35,6 +45,10 @@ struct FPointLightProfile
 	FLinearColor LightColor = FLinearColor::White;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light", meta=(UIMin = 8))
 	float AttenuationRadius = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light", meta=(ClampMin = 0, EditCondition="Type==ELightType::LT_Spot", EditConditionHides))
+	float InnerConeAngle = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light", meta=(ClampMin = 0, EditCondition="Type==ELightType::LT_Spot", EditConditionHides))
+	float OuterConeAngle = 44.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light", meta=(ClampMin = 0))
 	float SourceRadius = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light")
@@ -47,7 +61,9 @@ struct FPointLightProfile
 	bool CastShadows = true;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup")
-	FVector Offset;
+	FVector LocationOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Light|Setup")
+	FRotator RotationOffset;
 	
 };
 
@@ -69,13 +85,13 @@ struct FMeshProfileInstance
 	float StartOffset = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile")
-	bool bActivatePointLight;
+	bool bActivateLight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile|Point Light", meta=(EditCondition="bActivatePointLight", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile|Point Light", meta=(EditCondition="bActivateLight", EditConditionHides))
 	FPointLightProfile LightData;
 
 	UPROPERTY()
-	TArray<UPointLightComponent*> PLCs;
+	TArray<ULocalLightComponent*> PLCs;
 };
 
 // This structure represents all the data needed to create spline meshes
@@ -156,6 +172,12 @@ protected:
 	// Update Existing Point Lights
 	void UpdatePLCs(const int idx);
 
+	FTransform GetTransformAtDistanceAlongSpline(float Distance);
+	void GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up);
+
+	// Update properties of a single light from profile
+	void UpdateLightPropertiesFromProfile(const FPointLightProfile& LightProfile, ULocalLightComponent* Light);
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))
 	TArray<FMeshProfileInstance> InstancedMeshes;
@@ -176,9 +198,6 @@ protected:
 	UPROPERTY()
 	TArray<USplineMeshComponent*> SMCs;
 
-	FTransform GetTransformAtDistanceAlongSpline(float Distance);
-	void GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up);
-
-	// Update properties of a single light from profile
-	void UpdatePointLightPropertiesFromProfile(const FPointLightProfile& LightProfile, UPointLightComponent* PointLight);
+	// Internal flags
+	bool bForceUnloadLights;
 };

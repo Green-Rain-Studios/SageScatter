@@ -5,7 +5,9 @@
 
 #include "Components/BillboardComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/LocalLightComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/SplineComponent.h"
 #include "SageScatterUtils.h"
 
@@ -76,7 +78,7 @@ void ASplinePlacementActor::PlaceInstancesAlongSpline()
 	}
 
 	// Then we populate based on total length of spline
-	float splineLength = Spline->GetSplineLength();
+	const float splineLength = Spline->GetSplineLength();
 
 	for(int i = 0; i < ISMs.Num(); i++)
 	{
@@ -310,52 +312,75 @@ void ASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 void ASplinePlacementActor::CreatePLCs(const int idx)
 {
 	// If the light doesnt need to be added, we skip it
-	if(!InstancedMeshes[idx].bActivatePointLight)
+	if(!InstancedMeshes[idx].bActivateLight || bForceUnloadLights)
 	{
-		for(UPointLightComponent* pl : InstancedMeshes[idx].PLCs)
+		for(ULocalLightComponent* ll : InstancedMeshes[idx].PLCs)
 		{
-			pl->UnregisterComponent();
-			pl->DestroyComponent();
+			ll->UnregisterComponent();
+			ll->DestroyComponent();
 		}
 		
 		// Clear array
 		InstancedMeshes[idx].PLCs.Empty();
 
-		return;
+		if(!InstancedMeshes[idx].bActivateLight)
+			return;
 	}
 
-	if(InstancedMeshes[idx].PLCs.Num() == ISMs[idx]->GetInstanceCount())
-		return;
-
-	// Clear array
-	InstancedMeshes[idx].PLCs.Empty();
-	const int instanceCount = ISMs[idx]->GetInstanceCount();
+	bForceUnloadLights = false;
 	
-	for(int i = 0; i < instanceCount; i++)
-	{		
-		UPointLightComponent* plc = NewObject<UPointLightComponent>(this);
-		plc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
-		plc->RegisterComponent();
-		plc->SetIntensityUnits(ELightUnits::Candelas);
-		InstancedMeshes[idx].PLCs.Add(plc);
+	if(InstancedMeshes[idx].PLCs.Num() != ISMs[idx]->GetInstanceCount())
+	{
+		if(InstancedMeshes[idx].PLCs.Num() > ISMs[idx]->GetInstanceCount())
+		{
+			for(int i = InstancedMeshes[idx].PLCs.Num()-1; i >= ISMs[idx]->GetInstanceCount(); i--)
+			{
+				ULocalLightComponent* ll = InstancedMeshes[idx].PLCs.Pop();
+				ll->UnregisterComponent();
+				ll->DestroyComponent();
+			}
+		}
+		else if(InstancedMeshes[idx].PLCs.Num() < ISMs[idx]->GetInstanceCount())
+		{
+			for(int i = InstancedMeshes[idx].PLCs.Num(); i < ISMs[idx]->GetInstanceCount(); i++)
+			{
+				if(InstancedMeshes[idx].LightData.Type == ELightType::LT_POINT)
+				{
+					UPointLightComponent* plc = NewObject<UPointLightComponent>(this);
+					plc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+					plc->RegisterComponent();
+					plc->SetIntensityUnits(ELightUnits::Candelas);
+					InstancedMeshes[idx].PLCs.Add(plc);
+				}
+				else
+				{
+					USpotLightComponent* slc = NewObject<USpotLightComponent>(this);
+					slc->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+					slc->RegisterComponent();
+					slc->SetIntensityUnits(ELightUnits::Candelas);
+					InstancedMeshes[idx].PLCs.Add(slc);
+				}
+			}
+		}
 	}
 }
 
 void ASplinePlacementActor::UpdatePLCs(const int idx)
 {
 	// If the light doesnt need to be added, we skip it
-	if(!InstancedMeshes[idx].bActivatePointLight)
+	if(!InstancedMeshes[idx].bActivateLight)
 		return;
 	
 	for(int i = 0; i < ISMs[idx]->GetInstanceCount(); i++)
 	{
 		FTransform transform;
 		ISMs[idx]->GetInstanceTransform(i, transform);
-		transform.SetLocation(transform.GetLocation() + USageScatterUtils::CalculateOffsets(InstancedMeshes[idx].LightData.Offset, transform.GetUnitAxis(EAxis::X), transform.GetUnitAxis(EAxis::Y), transform.GetUnitAxis(EAxis::Z)));
+		transform.SetLocation(transform.GetLocation() + USageScatterUtils::CalculateOffsets(InstancedMeshes[idx].LightData.LocationOffset, transform.GetUnitAxis(EAxis::X), transform.GetUnitAxis(EAxis::Y), transform.GetUnitAxis(EAxis::Z)));
+		transform.SetRotation((USageScatterUtils::MakeRotatorFromAxes(transform.GetUnitAxis(EAxis::X), transform.GetUnitAxis(EAxis::Y), transform.GetUnitAxis(EAxis::Z)) + InstancedMeshes[idx].LightData.RotationOffset).Quaternion());
 		
 		// Set data on point light component
 		InstancedMeshes[idx].PLCs[i]->SetRelativeTransform(transform);
-		UpdatePointLightPropertiesFromProfile(InstancedMeshes[idx].LightData, InstancedMeshes[idx].PLCs[i]);
+		UpdateLightPropertiesFromProfile(InstancedMeshes[idx].LightData, InstancedMeshes[idx].PLCs[i]);
 	}
 }
 
@@ -371,24 +396,35 @@ void ASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Dista
 	Up = Spline->GetUpVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 }
 
-void ASplinePlacementActor::UpdatePointLightPropertiesFromProfile(const FPointLightProfile& LightProfile,
-	UPointLightComponent* PointLight)
+void ASplinePlacementActor::UpdateLightPropertiesFromProfile(const FPointLightProfile& LightProfile,
+	ULocalLightComponent* Light)
 {
-	if(PointLight == nullptr)
+	if(Light == nullptr)
 		return;
 	
 	// Set all properties of the light from the light profile
-	PointLight->Intensity = LightProfile.Intensity;
-	PointLight->SetLightColor(LightProfile.LightColor);
-	PointLight->AttenuationRadius = LightProfile.AttenuationRadius;
-	PointLight->SourceRadius = LightProfile.SourceRadius;
-	
-	PointLight->bUseTemperature = LightProfile.bUseTemperature;    
-	if(LightProfile.bUseTemperature)
-		PointLight->Temperature = LightProfile.Temperature;
+	Light->Intensity = LightProfile.Intensity;
+	Light->SetLightColor(LightProfile.LightColor);
+	Light->AttenuationRadius = LightProfile.AttenuationRadius;
 
-	PointLight->bAffectsWorld = LightProfile.AffectsWorld;
-	PointLight->CastShadows = LightProfile.CastShadows;
+	if(LightProfile.Type == ELightType::LT_POINT)
+	{
+		Cast<UPointLightComponent>(Light)->SourceRadius = LightProfile.SourceRadius;
+	}
+	else if(LightProfile.Type == ELightType::LT_SPOT)
+	{
+		USpotLightComponent* slc = Cast<USpotLightComponent>(Light);
+		slc->SourceRadius = LightProfile.SourceRadius;
+		slc->InnerConeAngle = LightProfile.InnerConeAngle;
+		slc->OuterConeAngle = LightProfile.OuterConeAngle;
+	}
+	
+	Light->bUseTemperature = LightProfile.bUseTemperature;    
+	if(LightProfile.bUseTemperature)
+		Light->Temperature = LightProfile.Temperature;
+
+	Light->bAffectsWorld = LightProfile.AffectsWorld;
+	Light->CastShadows = LightProfile.CastShadows;
 }
 
 // Called every frame
@@ -407,6 +443,11 @@ void ASplinePlacementActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		// Discard and repopulate ISMs
 		RepopulateISMs();
+
+		if(PropertyChangedEvent.Property->GetName() == "Type")
+		{
+			bForceUnloadLights = true;
+		}
 	}
 
 	// Making this as granular as possible for max performance
