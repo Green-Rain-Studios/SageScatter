@@ -101,8 +101,8 @@ void ASplinePlacementActor::PlaceInstancesAlongSpline()
 		
 		// Add instances to ISM
 		ISMs[i]->AddInstances(transforms,false);
-		CreatePLCs(i);
-		UpdatePLCs(i);
+		CreateLCs(i);
+		UpdateLCs(i);
 	}
 }
 
@@ -309,7 +309,7 @@ void ASplinePlacementActor::PlaceSplineMeshComponentsAlongSpline()
 	}
 }
 
-void ASplinePlacementActor::CreatePLCs(const int idx)
+void ASplinePlacementActor::CreateLCs(const int idx)
 {
 	// If the light doesnt need to be added, we skip it
 	if(!InstancedMeshes[idx].bActivateLight || bForceUnloadLights)
@@ -365,7 +365,7 @@ void ASplinePlacementActor::CreatePLCs(const int idx)
 	}
 }
 
-void ASplinePlacementActor::UpdatePLCs(const int idx)
+void ASplinePlacementActor::UpdateLCs(const int idx)
 {
 	// If the light doesnt need to be added, we skip it
 	if(!InstancedMeshes[idx].bActivateLight)
@@ -396,7 +396,7 @@ void ASplinePlacementActor::GetDirectionVectorsAtDistanceAlongSpline(float Dista
 	Up = Spline->GetUpVectorAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::Local);
 }
 
-void ASplinePlacementActor::UpdateLightPropertiesFromProfile(const FPointLightProfile& LightProfile,
+void ASplinePlacementActor::UpdateLightPropertiesFromProfile(const FLightProfile& LightProfile,
 	ULocalLightComponent* Light)
 {
 	if(Light == nullptr)

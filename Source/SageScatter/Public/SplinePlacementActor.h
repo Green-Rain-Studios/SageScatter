@@ -30,9 +30,9 @@ enum class ELightType : uint8
 	LT_SPOT		UMETA(DisplayName = "Spotlight"),
 };
 
-// This structure represents all the data needed to create a point light profile
+// This structure represents all the data needed to create a light profile
 USTRUCT(BlueprintType)
-struct FPointLightProfile
+struct FLightProfile
 {
 	GENERATED_BODY()
 
@@ -87,8 +87,8 @@ struct FMeshProfileInstance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile")
 	bool bActivateLight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile|Point Light", meta=(EditCondition="bActivateLight", EditConditionHides))
-	FPointLightProfile LightData;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mesh Profile|Light", meta=(EditCondition="bActivateLight", EditConditionHides))
+	FLightProfile LightData;
 
 	UPROPERTY()
 	TArray<ULocalLightComponent*> PLCs;
@@ -166,17 +166,17 @@ protected:
 	// Place Spline Mesh components
 	void PlaceSplineMeshComponentsAlongSpline();
 
-	// Create required number of point lights based on length of spline and gap
-	void CreatePLCs(const int idx);
+	// Create required number of lights based on length of spline and gap
+	void CreateLCs(const int idx);
 
-	// Update Existing Point Lights
-	void UpdatePLCs(const int idx);
+	// Update Existing Lights
+	void UpdateLCs(const int idx);
 
 	FTransform GetTransformAtDistanceAlongSpline(float Distance);
 	void GetDirectionVectorsAtDistanceAlongSpline(float Distance, FVector& Fwd, FVector& Right, FVector& Up);
 
 	// Update properties of a single light from profile
-	void UpdateLightPropertiesFromProfile(const FPointLightProfile& LightProfile, ULocalLightComponent* Light);
+	void UpdateLightPropertiesFromProfile(const FLightProfile& LightProfile, ULocalLightComponent* Light);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Setup", meta=(ShowOnlyInnerProperties))
